@@ -1,0 +1,197 @@
+{
+  "horodatage_utc": "2026-11-12T14:57:45+00:00",
+  "peripheriques": [
+    {
+      "index": 0,
+      "nom": "Microsoft Sound Mapper - Input",
+      "est_defaut": false
+    },
+    {
+      "index": 1,
+      "nom": "Headset Microphone (Jabra Evolv",
+      "est_defaut": true
+    },
+    {
+      "index": 2,
+      "nom": "RÃ©seau de microphones (IntelÂ® S",
+      "est_defaut": false
+    },
+    {
+      "index": 3,
+      "nom": "Microsoft Sound Mapper - Output",
+      "est_defaut": false
+    },
+    {
+      "index": 4,
+      "nom": "Headset Earphone (Jabra Evolve2",
+      "est_defaut": false
+    },
+    {
+      "index": 5,
+      "nom": "Speaker (Realtek(R) Audio)",
+      "est_defaut": false
+    },
+    {
+      "index": 6,
+      "nom": "Primary Sound Capture Driver",
+      "est_defaut": false
+    },
+    {
+      "index": 7,
+      "nom": "Headset Microphone (Jabra Evolve2 30)",
+      "est_defaut": false
+    },
+    {
+      "index": 8,
+      "nom": "RÃ©seau de microphones (IntelÂ® Smart Sound Technology for Digital Microphones)",
+      "est_defaut": false
+    },
+    {
+      "index": 9,
+      "nom": "Primary Sound Driver",
+      "est_defaut": false
+    },
+    {
+      "index": 10,
+      "nom": "Headset Earphone (Jabra Evolve2 30)",
+      "est_defaut": false
+    },
+    {
+      "index": 11,
+      "nom": "Speaker (Realtek(R) Audio)",
+      "est_defaut": false
+    },
+    {
+      "index": 12,
+      "nom": "Headset Earphone (Jabra Evolve2 30)",
+      "est_defaut": false
+    },
+    {
+      "index": 13,
+      "nom": "Speaker (Realtek(R) Audio)",
+      "est_defaut": false
+    },
+    {
+      "index": 14,
+      "nom": "RÃ©seau de microphones (IntelÂ® Smart Sound Technology for Digital Microphones)",
+      "est_defaut": false
+    },
+    {
+      "index": 15,
+      "nom": "Headset Microphone (Jabra Evolve2 30)",
+      "est_defaut": false
+    },
+    {
+      "index": 16,
+      "nom": "Speakers 1 (Realtek HD Audio output with SST)",
+      "est_defaut": false
+    },
+    {
+      "index": 17,
+      "nom": "Speakers 2 (Realtek HD Audio output with SST)",
+      "est_defaut": false
+    },
+    {
+      "index": 18,
+      "nom": "PC Speaker (Realtek HD Audio output with SST)",
+      "est_defaut": false
+    },
+    {
+      "index": 19,
+      "nom": "Microphone (Realtek HD Audio Mic input)",
+      "est_defaut": false
+    },
+    {
+      "index": 20,
+      "nom": "Stereo Mix (Realtek HD Audio Stereo input)",
+      "est_defaut": false
+    },
+    {
+      "index": 21,
+      "nom": "Headphones 1 (Realtek HD Audio 2nd output with SST)",
+      "est_defaut": false
+    },
+    {
+      "index": 22,
+      "nom": "Headphones 2 (Realtek HD Audio 2nd output with SST)",
+      "est_defaut": false
+    },
+    {
+      "index": 23,
+      "nom": "PC Speaker (Realtek HD Audio 2nd output with SST)",
+      "est_defaut": false
+    },
+    {
+      "index": 24,
+      "nom": "Output (@System32\\drivers\\bthhfenum.sys,#4;%1 Hands-Free HF Audio%0\r\n;(iPhone de Mouhsine))",
+      "est_defaut": false
+    },
+    {
+      "index": 25,
+      "nom": "Input (@System32\\drivers\\bthhfenum.sys,#4;%1 Hands-Free HF Audio%0\r\n;(iPhone de Mouhsine))",
+      "est_defaut": false
+    },
+    {
+      "index": 26,
+      "nom": "Headset Microphone 1 (Jabra Evolve2 30)",
+      "est_defaut": false
+    },
+    {
+      "index": 27,
+      "nom": "Headset Microphone 2 (Jabra Evolve2 30)",
+      "est_defaut": false
+    },
+    {
+      "index": 28,
+      "nom": "Headset Microphone 3 (Jabra Evolve2 30)",
+      "est_defaut": false
+    },
+    {
+      "index": 29,
+      "nom": "Output 1 (Jabra Evolve2 30)",
+      "est_defaut": false
+    },
+    {
+      "index": 30,
+      "nom": "Output 2 (Jabra Evolve2 30)",
+      "est_defaut": false
+    },
+    {
+      "index": 31,
+      "nom": "Input (Jabra Evolve2 30)",
+      "est_defaut": false
+    },
+    {
+      "index": 32,
+      "nom": "Communication Speaker (Jabra Evolve2 30)",
+      "est_defaut": false
+    },
+    {
+      "index": 33,
+      "nom": "Input ()",
+      "est_defaut": false
+    },
+    {
+      "index": 34,
+      "nom": "Microphone Array 1 ()",
+      "est_defaut": false
+    },
+    {
+      "index": 35,
+      "nom": "Microphone Array 2 ()",
+      "est_defaut": false
+    },
+    {
+      "index": 36,
+      "nom": "Microphone Array 3 ()",
+      "est_defaut": false
+    }
+  ],
+  "mesure_amplitude": {
+    "n_echantillons": 132096,
+    "amplitude_crete": 32767,
+    "amplitude_rms": 1208.605,
+    "seuil_energie": 1205.98
+  },
+  "verdict_silence_numerique": false
+}
