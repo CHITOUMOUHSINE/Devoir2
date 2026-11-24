@@ -51,6 +51,7 @@ de pompe) : section devoir2.fenetre_voix de ihr_config.json, datee
 
 from __future__ import annotations
 
+import threading
 import time
 from typing import Any, Callable
 
@@ -90,6 +91,8 @@ class VoiceWindow:
         self._confirmation_en_attente: str | None = None
         self._fermee = False
         self._intervalle_pompe = float(settings["intervalle_pompe_s"])
+        # Fil qui cree Tk : le seul autorise a pomper (voir attendre_confirmation).
+        self._fil_tk = threading.get_ident()
 
         titre = str(settings["titre"])
         largeur = int(settings["largeur_pixels"])
@@ -206,6 +209,13 @@ class VoiceWindow:
             de voice.MicrophoneInput.ecouter(), appele depuis le meme fil de
             fond qui portait deja cette attente.
 
+            Exception ajoutee le 2026-11-21 : si l'attente tourne sur le fil
+            qui a cree Tk (cas de voice_turtle.py, ou ecouter() est appele
+            depuis le fil principal), personne d'autre ne peut pomper. La
+            methode appelle alors pump() elle-meme, sinon la fenetre ne
+            s'affiche jamais et Entree n'est jamais lue. Depuis tout autre fil
+            (voice_input_node), elle ne touche toujours pas a tkinter.
+
         Inputs:
             aucun
 
@@ -215,7 +225,10 @@ class VoiceWindow:
                 arreter proprement, sans rien publier)
         --------------------------------------------------------------------------
         """
+        sur_le_fil_tk = threading.get_ident() == self._fil_tk
         while True:
+            if sur_le_fil_tk:
+                self.pump()
             if self._fermee:
                 return None
             if self._confirmation_en_attente is not None:

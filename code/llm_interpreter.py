@@ -191,7 +191,8 @@ def construire_schema(actions_cfg: dict[str, Any], bornes: dict[str, Any],
 def construire_prompt(commande: str, actions_cfg: dict[str, Any],
                       noms_permis: list[str] | None = None,
                       avec_sequence: bool = False,
-                      historique_texte: str = "") -> str:
+                      historique_texte: str = "",
+                      format_sortie: str = "") -> str:
     """
     --------------------------------------------------------------------------
     Purpose:
@@ -209,6 +210,8 @@ def construire_prompt(commande: str, actions_cfg: dict[str, Any],
         avec_sequence (bool): si vrai, ajoute l'exemple de sequence a l'invite
         historique_texte (str): bloc d'historique deja formate (history.py),
             insere tel quel ; rien n'est ajoute s'il est vide
+        format_sortie (str): consigne de format JSON (devoir2.llm_format_sortie),
+            ajoutee a la fin de l'invite ; rien n'est ajoute si elle est vide
 
     Outputs:
         prompt (str): texte envoye au modele
@@ -242,6 +245,12 @@ def construire_prompt(commande: str, actions_cfg: dict[str, Any],
 
     bloc_historique = f"\n{historique_texte}\n" if historique_texte else ""
 
+    # Ollama 0.40.16 ignore le schema passe dans `format=` (mesure du 2026-11-21, meme
+    # par l'API HTTP directe) : le format attendu est donc repete en clair ici, depuis
+    # devoir2.llm_format_sortie. Mesure le meme jour : 12 commandes sur 12 justes avec
+    # ce bloc, toutes les rotations a gauche sans lui.
+    bloc_format = f"\n{format_sortie}\n" if format_sortie else ""
+
     return (
         "Tu classes une commande vocale francaise destinee a un robot tortue.\n"
         f"{conventions}"
@@ -254,6 +263,7 @@ def construire_prompt(commande: str, actions_cfg: dict[str, Any],
         "Reponds uniquement par l'objet JSON demande. Le champ action doit valoir "
         "l'un des noms ci-dessus, sans rien ajouter. Le champ justification "
         "contient au plus une phrase courte en francais."
+        f"{bloc_format}"
     )
 
 
@@ -289,6 +299,8 @@ class LlmInterpreter:
         self._max_tentatives = int(settings["llm_max_attempts"])
         self._timeout = float(settings["llm_timeout_seconds"])
         self._num_ctx = int(settings["llm_num_ctx"])
+        # Cle facultative : son absence n'ajoute aucun bloc, l'invite reste celle d'origine.
+        self._format_sortie = str(settings.get("llm_format_sortie", ""))
         self._keep_alive = settings["llm_keep_alive"]
         self._erreur_demarrage = ""
 
@@ -356,7 +368,8 @@ class LlmInterpreter:
             return Interpretation(None, "", 0, "commande vide")
 
         prompt = construire_prompt(commande, self._actions, self._noms_permis,
-                                   self._avec_sequence, historique)
+                                   self._avec_sequence, historique,
+                                   format_sortie=self._format_sortie)
         derniere_erreur = "aucune tentative"
         brut = ""
 
@@ -433,6 +446,32 @@ class LlmInterpreter:
             return str(reponse.get("response", "")).strip()
         return str(getattr(reponse, "response", "")).strip()
 
+    def _sens_rotation_absent(self, nom: str, charge: dict[str, Any]) -> str:
+        """
+        --------------------------------------------------------------------------
+        Purpose:
+            Refuser une action qui tourne sans `is_clockwise` booleen. Mesure du
+            2026-11-21 sur Ollama 0.40.16 : le schema passe dans `format=` n'est
+            pas applique, le modele omet le champ, et `action_depuis_config`
+            retombait alors sur le defaut antihoraire : « tourne a droite »
+            devenait une rotation a gauche. Une rotation n'a aucun sens par defaut
+            legitime, donc l'absence est un echec motive (le modele est relance),
+            jamais un sens devine. Les actions sans rotation gardent leurs defauts.
+
+        Inputs:
+            nom (str): nom d'action, deja verifie dans l'enumeration
+            charge (dict): objet JSON rendu par le modele pour cette action
+
+        Outputs:
+            erreur (str): raison du refus, vide si l'action est acceptable
+        --------------------------------------------------------------------------
+        """
+        vitesse_angulaire = float(self._actions[nom].get("angular_speed", 0.0))
+        if vitesse_angulaire > 0.0 and not isinstance(charge.get("is_clockwise"), bool):
+            return (f"action '{nom}' tourne mais le champ booleen 'is_clockwise' "
+                    f"est absent ou invalide : {json.dumps(charge, ensure_ascii=False)[:120]}")
+        return ""
+
     def _action_depuis_etape(self, etape: dict[str, Any]) -> Action:
         """Construire une Action a partir d'une etape JSON deja validee comme objet."""
         nom = etape.get("action")
@@ -440,6 +479,9 @@ class LlmInterpreter:
             raise KeyError(
                 f"action '{nom}' hors de l'enumeration {self._noms_permis}"
             )
+        erreur = self._sens_rotation_absent(nom.strip(), etape)
+        if erreur:
+            raise KeyError(erreur)
         return action_depuis_config(nom.strip(), self._actions, params=etape,
                                     bornes=self._bornes)
 
@@ -500,6 +542,9 @@ class LlmInterpreter:
         if nom not in self._noms_permis:
             return None, (f"action '{nom}' hors de l'enumeration "
                           f"{self._noms_permis}")
+        erreur = self._sens_rotation_absent(nom, charge)
+        if erreur:
+            return None, erreur
         try:
             action = action_depuis_config(nom, self._actions, params=charge,
                                           bornes=self._bornes)

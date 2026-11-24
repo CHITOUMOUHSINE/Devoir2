@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 import time
 from pathlib import Path
@@ -104,18 +105,69 @@ def executer_action(turtle, action, settings: dict[str, Any],
             "publierait indefiniment sans jamais avancer dans le temps."
         )
 
+    consigne = _consigne_pour_amplitude(action, periode)
     publies = 0
-    ecoule = 0.0
-    while ecoule < action.duree_s:
-        turtle.drive(linear=action.linear, angular=action.angular)
-        turtle.spin_once(0.0)
-        publies += 1
-        sleep(periode)
-        ecoule += periode
+    if consigne is not None:
+        nombre, linear, angular = consigne
+        for _ in range(nombre):
+            turtle.drive(linear=linear, angular=angular)
+            turtle.spin_once(0.0)
+            publies += 1
+            sleep(periode)
+    else:
+        ecoule = 0.0
+        while ecoule < action.duree_s:
+            turtle.drive(linear=action.linear, angular=action.angular)
+            turtle.spin_once(0.0)
+            publies += 1
+            sleep(periode)
+            ecoule += periode
 
     turtle.stop()
     turtle.spin_once(0.0)
     return publies + 1
+
+
+def _consigne_pour_amplitude(action, periode: float) -> tuple[int, float, float] | None:
+    """
+    --------------------------------------------------------------------------
+    Purpose:
+        Calculer combien de consignes publier, et a quelle vitesse, pour que le
+        parcours commande vaille EXACTEMENT la distance et l'angle demandes.
+        Ajoute le 2026-11-21 : mesure sur le vrai turtlesim, 3 essais par
+        commande, « avance d'un metre » parcourait 1,98 unite et « tourne a
+        droite de 45 degres » 91,4 degres, car la vitesse et la duree etaient
+        fixes. La vitesse configuree fixe la duree utile, arrondie a un nombre
+        entier de periodes, puis la vitesse est reajustee pour couvrir
+        l'amplitude exacte sur ce nombre de periodes (meme idee que
+        motion_node, qui adapte la vitesse a la distance). Le signe vient
+        toujours de l'action, donc de signer().
+
+    Inputs:
+        action (Action): mouvement a executer
+        periode (float): periode de republication, > 0
+
+    Outputs:
+        consigne (tuple | None): (nombre de publications, vitesse lineaire,
+            vitesse angulaire), ou None si l'action ne porte aucune amplitude
+            (par exemple arreter) : l'appelant garde alors duree_s
+    --------------------------------------------------------------------------
+    """
+    distance = abs(float(action.distance_m))
+    angle = abs(math.radians(float(action.angle_deg)))
+    durees = []
+    if action.linear and distance > 0.0:
+        durees.append(distance / abs(action.linear))
+    if action.angular and angle > 0.0:
+        durees.append(angle / abs(action.angular))
+    if not durees:
+        return None
+
+    nombre = max(1, round(max(durees) / periode))
+    temps = nombre * periode
+    linear = math.copysign(distance / temps, action.linear) if action.linear and distance > 0.0 else 0.0
+    angular = math.copysign(angle / temps, action.angular) if action.angular and angle > 0.0 else 0.0
+    return nombre, linear, angular
 
 
 def boucle(machine: MachineDialogue,

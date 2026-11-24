@@ -137,14 +137,21 @@ def test_attendre_confirmation_n_appelle_jamais_tkinter(faux_tk, fenetre_cfg):
     capture (voice.MicrophoneInput.ecouter()) : elle ne doit donc plus jamais pomper
     elle-meme, seul pump() (fil principal) le fait desormais.
     """
+    import threading
+
     fenetre = _construire(fenetre_cfg)
     fenetre.afficher_texte("avance")
     fenetre._root.declencher_entree()
     appels_avant = fenetre._root.appels_update
+    resultat = []
 
-    texte = fenetre.attendre_confirmation()
+    # Appel depuis un fil de fond, comme ecouter() sous voice_input_node (2026-11-21 :
+    # sur le fil Tk lui-meme, attendre_confirmation pompe desormais, voir plus bas).
+    fil = threading.Thread(target=lambda: resultat.append(fenetre.attendre_confirmation()))
+    fil.start()
+    fil.join(timeout=2.0)
 
-    assert texte == "avance"
+    assert resultat == ["avance"]
     assert fenetre._root.appels_update == appels_avant
 
 
@@ -180,3 +187,53 @@ def test_close_est_idempotent(faux_tk, fenetre_cfg):
     fenetre.close()  # ne doit pas lever
 
     assert fenetre.fermee is True
+
+
+# --------------------------------------------------------------------- pompe sur le fil Tk (2026-11-21)
+# Mesure du 2026-11-21 : `voice_turtle.py --input micro` attendait Entree dans
+# attendre_confirmation() sur le fil principal, qui ne pompait jamais Tk. La fenetre ne
+# s'affichait donc jamais et Entree n'etait jamais lue. voice_input_node pompe depuis sa
+# propre boucle, sur le fil Tk, pendant que ecouter() tourne sur un fil de fond.
+
+import threading  # noqa: E402
+
+
+def test_attendre_confirmation_pompe_quand_appelee_sur_le_fil_tk(faux_tk, fenetre_cfg):
+    """Sur le fil qui a cree Tk, l'attente doit pomper, sinon Entree n'est jamais lue."""
+    fenetre = _construire(fenetre_cfg)
+    appels = []
+
+    def pump_qui_recoit_entree():
+        appels.append(1)
+        fenetre._confirmation_en_attente = "avance"
+
+    fenetre.pump = pump_qui_recoit_entree
+    # Garde-fou : sans pompe, la boucle ne finirait jamais ; on la ferme apres 2 s.
+    garde = threading.Timer(2.0, lambda: setattr(fenetre, "_fermee", True))
+    garde.start()
+    try:
+        texte = fenetre.attendre_confirmation()
+    finally:
+        garde.cancel()
+
+    assert texte == "avance"
+    assert appels
+
+
+def test_attendre_confirmation_ne_pompe_pas_depuis_un_autre_fil(faux_tk, fenetre_cfg):
+    """Controle negatif : depuis un fil de fond (voice_input_node), seul le fil Tk pompe."""
+    fenetre = _construire(fenetre_cfg)
+    appels = []
+    fenetre.pump = lambda: appels.append(1)
+    resultat = []
+
+    def attendre():
+        resultat.append(fenetre.attendre_confirmation())
+
+    fil = threading.Thread(target=attendre)
+    fil.start()
+    fenetre._confirmation_en_attente = "avance"
+    fil.join(timeout=2.0)
+
+    assert resultat == ["avance"]
+    assert appels == []

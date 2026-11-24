@@ -1,29 +1,17 @@
-# Plan 1 — Fonction evaluer()
+# Plan 1
 
-1. Dans code/trajectory.py, implémenter uniquement la fonction evaluer()
-   en respectant son docstring et les commentaires Indice.
-2. Gérer :
-
-   - L'accélération.
-   - La vitesse constante.
-   - La décélération.
-   - Les instants avant le départ et après la fin.
-   - Le cas d'une distance nulle.
-3. Ne modifier aucun autre fichier de code.
-   Ne modifier aucun fichier dans test/.
-4. Exécuter les tests ciblés :
-
-   - test_position_finale_egale_la_distance_demandee
-   - test_vitesse_nulle_aux_deux_bouts
-   - test_vitesse_maximale_respectee
-   - test_evaluer_a_l_interieur_de_la_descente_egale_la_formule_cinematique
-   - test_distance_nulle_rend_un_profil_de_duree_nulle_sans_division
-   - test_evaluer_ecrete_avant_le_depart_et_apres_la_fin
-5. Mettre à jour obligatoirement :
-
-   - progress.md : cocher le plan uniquement si les 6 tests passent.
-   - audit.md : enregistrer les fichiers modifiés, les tests exécutés,
-     leurs résultats et les éventuelles erreurs.
-
-Règle : ne jamais passer au plan suivant tant que les 6 tests
-ne sont pas validés.
+1. Dans code/state_machine.py, remplacer le raise NotImplementedError de
+   Transitions.repondu en suivant son docstring et son commentaire Indice
+   (l'état courant décide où mène un refus ; SORTIE et INDECIS d'abord).
+   Ne pas modifier test/.
+   Tests à faire passer :
+   test_refus_en_confirmation_commande_renvoie_a_ecoute_jamais_a_interpretation,
+   test_refus_en_confirmation_action_renvoie_a_interpretation_jamais_a_ecoute,
+   test_scenario_nominal_avance_oui_oui_quitter_finit_en_arret_avec_une_action,
+   test_max_tours_borne_une_boucle_qui_ne_convergerait_jamais,
+   test_la_commande_dictee_traverse_la_machine_jusqu_a_l_execution,
+   test_apres_trois_essais_rates_la_machine_revient_ecouter_et_n_execute_rien.
+2. Lancer : pytest test/test_state_machine.py test/test_boucle.py
+   Si ces tests passent, dans progress.md cocher « Transitions.repondu »
+   ([ ] devient [x]) et noter le résultat réel de pytest. Sinon, ne rien
+   cocher et corriger.

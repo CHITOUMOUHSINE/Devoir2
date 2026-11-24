@@ -203,3 +203,66 @@ def test_max_tours_borne_une_boucle_qui_ne_convergerait_jamais(cfg):
     # s'entendait mal). Le compte de tours reste verifie par l'assertion ci-dessus.
     assert "Limite de sécurité atteinte" in resume["historique"][-1][2]
     assert resume["actions_executees"] == []  # la machine n'a jamais atteint EXECUTION
+
+
+# --------------------------------------------------------------------- executer_action() : amplitude demandee (2026-11-21)
+# Mesure du 2026-11-21 sur le vrai turtlesim, 3 essais par commande : « avance d'un metre »
+# parcourait 1,98 unite et « tourne a droite de 45 degres » tournait de 91,4 degres. Le LLM
+# rendait pourtant 1 m et 45 degres : executer_action appliquait une vitesse et une duree
+# fixes, sans lire distance_m ni angle_deg. Le parcours commande doit valoir la demande.
+
+import math  # noqa: E402
+
+
+def _parcours(turtle, periode):
+    """Distance et angle commandes : somme des vitesses publiees fois la periode."""
+    lineaire = sum(v for v, _ in turtle.consignes) * periode
+    angulaire = sum(w for _, w in turtle.consignes) * periode
+    return lineaire, angulaire
+
+
+def test_executer_action_parcourt_la_distance_demandee(cfg):
+    """« avance d'un metre » commande exactement 1 unite, pas la distance par defaut."""
+    action = action_depuis_config("avancer", cfg["actions"], params={"distance_m": 1.0})
+    turtle = _TortueFactice()
+
+    executer_action(turtle, action, cfg, sleep=lambda _: None)
+
+    lineaire, angulaire = _parcours(turtle, cfg["command_period_s"])
+    assert lineaire == pytest.approx(1.0)
+    assert angulaire == pytest.approx(0.0)
+
+
+def test_executer_action_recule_de_la_distance_demandee(cfg):
+    """Le sens est conserve : reculer d'un metre commande -1 unite."""
+    action = action_depuis_config("reculer", cfg["actions"], params={"distance_m": 1.0})
+    turtle = _TortueFactice()
+
+    executer_action(turtle, action, cfg, sleep=lambda _: None)
+
+    lineaire, _ = _parcours(turtle, cfg["command_period_s"])
+    assert lineaire == pytest.approx(-1.0)
+
+
+def test_executer_action_tourne_de_l_angle_demande(cfg):
+    """« tourne a droite de 45 degres » commande -45 degres (REP-103), pas 90."""
+    action = action_depuis_config("tourner", cfg["actions"],
+                                  params={"angle_deg": 45.0, "is_clockwise": True})
+    turtle = _TortueFactice()
+
+    executer_action(turtle, action, cfg, sleep=lambda _: None)
+
+    _, angulaire = _parcours(turtle, cfg["command_period_s"])
+    assert angulaire == pytest.approx(-math.radians(45.0))
+
+
+def test_executer_action_sans_amplitude_garde_la_duree_configuree(cfg):
+    """Controle negatif : arreter (aucune distance ni angle) ne bouge pas et finit par l'arret."""
+    action = action_depuis_config("arreter", cfg["actions"])
+    turtle = _TortueFactice()
+
+    publies = executer_action(turtle, action, cfg, sleep=lambda _: None)
+
+    assert publies >= 2
+    assert _parcours(turtle, cfg["command_period_s"]) == (0.0, 0.0)
+    assert turtle.consignes[-1] == (0.0, 0.0)

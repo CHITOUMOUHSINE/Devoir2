@@ -392,3 +392,98 @@ def test_sous_ensemble_inconnu_leve_keyerror_listant_les_noms_declares(cfg):
     message = str(exc_info.value)
     for nom in cfg["sous_ensembles"]:
         assert nom in message
+
+
+# --------------------------------------------------------------------- sens de rotation absent (2026-11-21)
+# Mesure du 2026-11-21 sur Ollama 0.40.16 : le schema passe dans `format=` n'est PAS
+# applique. Le modele a rendu {"action": "tourner", "justification": "..."} pour
+# « tourne a droite », sans is_clockwise, et le plan est devenu « 90 degres vers la
+# gauche ». Une rotation n'a aucun sens par defaut legitime : l'absence du champ doit
+# etre un echec motive, jamais une rotation devinee.
+
+def test_rotation_sans_is_clockwise_est_un_echec_qui_nomme_le_champ(cfg):
+    """Une action qui tourne sans is_clockwise booleen est refusee, et l'erreur nomme le champ."""
+    client = FauxOllama(['{"action": "tourner", "justification": "rotation horaire"}'])
+    interp = LlmInterpreter(cfg, client=client)
+
+    resultat = interp.interpreter("tourne a droite")
+
+    assert not resultat.ok
+    assert "is_clockwise" in resultat.erreur
+    assert client.nb_appels == cfg["llm_max_attempts"]  # le modele est relance, borne
+
+
+def test_rotation_avec_is_clockwise_non_booleen_est_refusee(cfg):
+    """is_clockwise doit etre un booleen : la chaine "droite" ne decide pas d'un sens."""
+    client = FauxOllama(['{"action": "tourner", "is_clockwise": "droite"}'])
+    interp = LlmInterpreter(cfg, client=client)
+
+    resultat = interp.interpreter("tourne a droite")
+
+    assert not resultat.ok
+    assert "is_clockwise" in resultat.erreur
+
+
+def test_rotation_sans_sens_puis_reponse_complete_reussit_vers_la_droite(cfg):
+    """Apres un refus, une reponse qui porte is_clockwise vrai donne une vitesse angulaire negative (REP-103)."""
+    client = FauxOllama(['{"action": "tourner"}',
+                         '{"action": "tourner", "is_clockwise": true}'])
+    interp = LlmInterpreter(cfg, client=client)
+
+    resultat = interp.interpreter("tourne a droite")
+
+    assert resultat.ok
+    assert resultat.tentatives == 2
+    assert resultat.plan.etapes[0].angular < 0.0
+
+
+def test_etape_de_sequence_qui_tourne_sans_sens_est_refusee(cfg):
+    """La meme regle s'applique a chaque etape d'une sequence."""
+    reponse = ('{"action": "sequence", "etapes": ['
+               '{"action": "avancer"}, {"action": "tourner"}]}')
+    interp = LlmInterpreter(cfg, client=FauxOllama([reponse]))
+
+    resultat = interp.interpreter("avance puis tourne")
+
+    assert not resultat.ok
+    assert "is_clockwise" in resultat.erreur
+
+
+def test_action_sans_rotation_n_exige_pas_is_clockwise(cfg):
+    """Controle negatif : avancer sans is_clockwise reste accepte, le defaut de la config s'applique."""
+    interp = LlmInterpreter(cfg, client=FauxOllama(['{"action": "avancer"}']))
+
+    resultat = interp.interpreter("avance")
+
+    assert resultat.ok
+
+
+# --------------------------------------------------------------------- format de sortie dans l'invite (2026-11-21)
+# Ollama 0.40.16 ignore `format=` (mesure du 2026-11-21, meme par l'API HTTP directe). Le
+# format attendu est donc repete en clair dans l'invite, depuis devoir2.llm_format_sortie.
+# Mesure le meme jour : 12 commandes sur 12 correctement traduites avec ce bloc, contre
+# des rotations toutes a gauche sans lui.
+
+def test_construire_prompt_ajoute_le_format_de_sortie_quand_il_est_fourni(cfg):
+    """Le bloc de format est insere tel quel a la fin de l'invite."""
+    prompt = construire_prompt("tourne a droite", cfg["actions"],
+                               format_sortie="FORMAT DE SORTIE OBLIGATOIRE : test")
+
+    assert prompt.rstrip().endswith("FORMAT DE SORTIE OBLIGATOIRE : test")
+
+
+def test_construire_prompt_sans_format_de_sortie_ne_change_pas(cfg):
+    """Controle negatif : sans bloc, l'invite reste celle d'avant."""
+    prompt = construire_prompt("tourne a droite", cfg["actions"])
+
+    assert "FORMAT DE SORTIE OBLIGATOIRE" not in prompt
+
+
+def test_interpreter_transmet_le_format_de_sortie_de_la_config(cfg):
+    """La valeur de devoir2.llm_format_sortie atteint l'invite envoyee au modele."""
+    client = FauxOllama(['{"action": "avancer"}'])
+    interp = LlmInterpreter(cfg, client=client)
+
+    interp.interpreter("avance")
+
+    assert cfg["llm_format_sortie"] in client.appels[0].prompt
